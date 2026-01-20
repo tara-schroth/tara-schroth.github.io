@@ -29,9 +29,9 @@
     <div id="container"></div>
     <div id="controls">
         <h3 style="margin: 0 0 10px 0;">Layers</h3>
-        <label><input type="checkbox" id="layer1" checked> <span style="color:red">●</span> Layer 1</label>
-        <label><input type="checkbox" id="layer2" checked> <span style="color:green">●</span> Layer 2</label>
-        <label><input type="checkbox" id="layer3" checked> <span style="color:blue">●</span> Layer 3</label>
+        <label><input type="checkbox" id="layer1" checked> TCIP</label>
+        <label><input type="checkbox" id="layer2"> GCIP</label>
+        <label><input type="checkbox" id="layer3"> ICIP</label>
     </div>
     <div id="info">
         <button id="close-info">&times;</button>
@@ -45,18 +45,54 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        const data1 = [{"name": "Point A1", "class": "Class X", "x": 5, "y": 5, "z": 5, "link": "#"}];
-        const data2 = [{"name": "Point B1", "class": "Class Y", "x": -5, "y": 2, "z": 3, "link": "#"}];
-        const data3 = [{"name": "Point C1", "class": "Class Z", "x": 0, "y": -5, "z": 0, "link": "#"}];
+        const data1 = [{"name": "Point A1", "class": "acs", "x": 5, "y": 5, "z": 5, "link": "#"}];
+        const data2 = [{"name": "Point B1", "class": "bpp", "x": -5, "y": 2, "z": 3, "link": "#"}];
+        const data3 = [{"name": "Point C1", "class": "kps", "x": 0, "y": -5, "z": 0, "link": "#"}];
+
+        const colorMap = {
+            "acs": 0x1F77B4,
+            "bpp": 0xAEC7E8,
+            "clp": 0xFF7F0E,
+            "cpmp": 0xFFBB78,
+            "cuttingstock": 0x2CA02C,
+            "cwlp": 0x98DF8A,
+            "gap": 0xD62728,
+            "irp": 0xFF9896,
+            "job-shop-scheduling": 0x9467BD, 
+            "kps": 0xC5B0D5,
+            "lotsizing": 0x8C564B,
+            "maplabeling": 0xC49C94,
+            "nrp": 0xE377C2, 
+            "pcp": 0xF7B6D2,
+            "relaxed-clique": 0x7F7F7F, 
+            "scheduling": 0xC7C7C7,
+            "tkp": 0xBCBD22, 
+            "train-timetabling": 0xDBDB8D,
+            "tup": 0x17BECF,
+            "uc": 0x9EDAE5,
+            "umcfp": 0x0F6F6A,
+            "vcol": 0x8C4FB5,
+            "vrp": 0xC28C1C,
+            };
 
         let scene, camera, renderer, raycaster, mouse, orbit;
         let layer1Group, layer2Group, layer3Group;
         let pointsData = [];
         let pointerDownPos = new THREE.Vector2();
-
+        function createCircleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.arc(32, 32, 30, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            return new THREE.CanvasTexture(canvas);
+        }
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xf0f0f0);
+            scene.background = new THREE.Color(0xffffff);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(15, 15, 15);
@@ -78,14 +114,18 @@
             layer1Group = new THREE.Group();
             layer2Group = new THREE.Group();
             layer3Group = new THREE.Group();
+            layer1Group.visible = true;
+            layer2Group.visible = false;
+            layer3Group.visible = false;
+
             scene.add(layer1Group, layer2Group, layer3Group);
 
             scene.add(new THREE.AxesHelper(5));
             scene.add(new THREE.GridHelper(20, 20));
 
-            createPoints(data1, layer1Group, 0xff0000, 1);
-            createPoints(data2, layer2Group, 0x00ff00, 2);
-            createPoints(data3, layer3Group, 0x0000ff, 3);
+            createPoints(data1, layer1Group, 1);
+            createPoints(data2, layer2Group, 2);
+            createPoints(data3, layer3Group, 3);
 
             // Interaction Listeners
             renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -109,17 +149,39 @@
             animate();
         }
 
-        function createPoints(data, group, color, layerId) {
+        function createPoints(data, group, layerId) {
             const geometry = new THREE.BufferGeometry();
             const positions = [];
+            const colors = [];
+
             data.forEach(p => {
+                // Add Position
                 positions.push(p.x, p.y, p.z);
+
+                // Add Color based on class
+                const hexColor = colorMap[p.class];
+                const color = new THREE.Color(hexColor);
+                colors.push(color.r, color.g, color.b);
+
+                // Store metadata for raycaster
                 pointsData.push({ ...p, layerId, position: new THREE.Vector3(p.x, p.y, p.z) });
             });
+
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ color: color, size: 0.6, sizeAttenuation: true });
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                    size: 0.8, 
+                    sizeAttenuation: true,
+                    vertexColors: true,
+                    map: createCircleTexture(), 
+                    transparent: true,          
+                    alphaTest: 0.5              
+                });
+
             group.add(new THREE.Points(geometry, material));
         }
+
 
         function onPointerUp(event) {
             // Determine if the user tapped or dragged
