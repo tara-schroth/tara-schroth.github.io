@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D Data Visualization</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; touch-action: none; }
         #container { width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; }
         #controls {
             position: absolute; top: 10px; left: 10px;
@@ -15,40 +15,44 @@
             z-index: 100;
         }
         #info {
-            position: absolute; bottom: 10px; left: 10px;
-            background: rgba(255, 255, 255, 0.9); padding: 15px;
-            border-radius: 5px; display: none; max-width: 300px; z-index: 100;
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95); padding: 15px;
+            border-radius: 8px; display: none; width: 80%; max-width: 300px; 
+            z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        #close-info { position: absolute; top: 5px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; }
+        #close-info { position: absolute; top: 5px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+        label { display: block; margin: 8px 0; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="container"></div>
     <div id="controls">
-        <h3 style="margin-top: 0;">Layers</h3>
-        <div><label><input type="checkbox" id="layer1" checked> Layer 1</label></div>
-        <div><label><input type="checkbox" id="layer2" checked> Layer 2</label></div>
-        <div><label><input type="checkbox" id="layer3" checked> Layer 3</label></div>
+        <h3 style="margin: 0 0 10px 0;">Layers</h3>
+        <label><input type="checkbox" id="layer1" checked> <span style="color:red">●</span> Layer 1</label>
+        <label><input type="checkbox" id="layer2" checked> <span style="color:green">●</span> Layer 2</label>
+        <label><input type="checkbox" id="layer3" checked> <span style="color:blue">●</span> Layer 3</label>
     </div>
     <div id="info">
         <button id="close-info">&times;</button>
-        <h3 id="point-name"></h3>
-        <p id="point-class"></p>
-        <p id="point-coords"></p>
-        <a id="point-link" href="#" target="_blank">Open Link</a>
+        <h3 id="point-name" style="margin: 0 0 5px 0;"></h3>
+        <p id="point-class" style="margin: 5px 0;"></p>
+        <p id="point-coords" style="margin: 5px 0; font-size: 0.9em; color: #555;"></p>
+        <a id="point-link" href="#" target="_blank" style="color: #0066cc; font-weight: bold;">Open Link</a>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        const data1 = [{"name": "A1", "class": "X", "x": 1, "y": 1, "z": 2, "link": "#"}];
-        const data2 = [{"name": "B1", "class": "Z", "x": -1, "y": 2, "z": 1, "link": "#"}];
-        const data3 = [{"name": "C1", "class": "X", "x": 0, "y": -2, "z": 0, "link": "#"}];
+        const data1 = [{"name": "Point A1", "class": "Class X", "x": 5, "y": 5, "z": 5, "link": "#"}];
+        const data2 = [{"name": "Point B1", "class": "Class Y", "x": -5, "y": 2, "z": 3, "link": "#"}];
+        const data3 = [{"name": "Point C1", "class": "Class Z", "x": 0, "y": -5, "z": 0, "link": "#"}];
 
         let scene, camera, renderer, raycaster, mouse, orbit;
         let layer1Group, layer2Group, layer3Group;
         let pointsData = [];
+        let pointerDownPos = new THREE.Vector2();
 
         function init() {
             scene = new THREE.Scene();
@@ -62,12 +66,13 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('container').appendChild(renderer.domElement);
 
+            // OrbitControls handles rotation and pinch-zoom
             orbit = new THREE.OrbitControls(camera, renderer.domElement);
             orbit.enableDamping = true;
-            orbit.dampingFactor = 0.05;
 
             raycaster = new THREE.Raycaster();
-            raycaster.params.Points.threshold = 0.5;
+            // Increased threshold for easier tapping on mobile
+            raycaster.params.Points.threshold = 0.7;
             mouse = new THREE.Vector2();
 
             layer1Group = new THREE.Group();
@@ -82,7 +87,12 @@
             createPoints(data2, layer2Group, 0x00ff00, 2);
             createPoints(data3, layer3Group, 0x0000ff, 3);
 
-            renderer.domElement.addEventListener('click', onDocumentClick);
+            // Interaction Listeners
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                pointerDownPos.set(e.clientX, e.clientY);
+            });
+            renderer.domElement.addEventListener('pointerup', onPointerUp);
+
             window.addEventListener('resize', onWindowResize);
 
             ['layer1', 'layer2', 'layer3'].forEach(id => {
@@ -92,7 +102,9 @@
                 });
             });
 
-            document.getElementById('close-info').onclick = () => document.getElementById('info').style.display = 'none';
+            document.getElementById('close-info').onclick = () => {
+                document.getElementById('info').style.display = 'none';
+            };
 
             animate();
         }
@@ -102,52 +114,61 @@
             const positions = [];
             data.forEach(p => {
                 positions.push(p.x, p.y, p.z);
-                // Store metadata for the raycaster search
                 pointsData.push({ ...p, layerId, position: new THREE.Vector3(p.x, p.y, p.z) });
             });
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            const material = new THREE.PointsMaterial({ color: color, size: 0.5, sizeAttenuation: true });
+            const material = new THREE.PointsMaterial({ color: color, size: 0.6, sizeAttenuation: true });
             group.add(new THREE.Points(geometry, material));
         }
 
-        function onDocumentClick(event) {
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        function onPointerUp(event) {
+            // Determine if the user tapped or dragged
+            const moveDistance = Math.sqrt(
+                Math.pow(event.clientX - pointerDownPos.x, 2) + 
+                Math.pow(event.clientY - pointerDownPos.y, 2)
+            );
 
-            raycaster.setFromCamera(mouse, camera);
-            const visibleGroups = [];
-            if(layer1Group.visible) visibleGroups.push(...layer1Group.children);
-            if(layer2Group.visible) visibleGroups.push(...layer2Group.children);
-            if(layer3Group.visible) visibleGroups.push(...layer3Group.children);
+            // If move distance is small, it's a tap
+            if (moveDistance < 10) {
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-            const intersects = raycaster.intersectObjects(visibleGroups);
+                raycaster.setFromCamera(mouse, camera);
+                const visibleGroups = [];
+                if(layer1Group.visible) visibleGroups.push(...layer1Group.children);
+                if(layer2Group.visible) visibleGroups.push(...layer2Group.children);
+                if(layer3Group.visible) visibleGroups.push(...layer3Group.children);
 
-            if (intersects.length > 0) {
-                const intersect = intersects[0];
-                let selected = null;
-                let minDistance = Infinity;
+                const intersects = raycaster.intersectObjects(visibleGroups);
 
-                // Loop through points to find the closest one to the click intersection
-                pointsData.forEach(pd => {
-                    const isLayerVisible = (pd.layerId === 1 && layer1Group.visible) || 
-                                         (pd.layerId === 2 && layer2Group.visible) || 
-                                         (pd.layerId === 3 && layer3Group.visible);
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+                    let selected = null;
+                    let minDistance = Infinity;
 
-                    if (isLayerVisible) {
-                        const dist = pd.position.distanceTo(intersect.point);
-                        if (dist < minDistance) {
-                            minDistance = dist;
-                            selected = pd;
+                    pointsData.forEach(pd => {
+                        const isLayerVisible = (pd.layerId === 1 && layer1Group.visible) || 
+                                             (pd.layerId === 2 && layer2Group.visible) || 
+                                             (pd.layerId === 3 && layer3Group.visible);
+
+                        if (isLayerVisible) {
+                            const dist = pd.position.distanceTo(intersect.point);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                selected = pd;
+                            }
                         }
-                    }
-                });
+                    });
 
-                if (selected) {
-                    document.getElementById('point-name').textContent = selected.name;
-                    document.getElementById('point-class').textContent = 'Class: ' + selected.class;
-                    document.getElementById('point-coords').textContent = `Pos: (${selected.x}, ${selected.y}, ${selected.z})`;
-                    document.getElementById('point-link').href = selected.link;
-                    document.getElementById('info').style.display = 'block';
+                    if (selected) {
+                        document.getElementById('point-name').textContent = selected.name;
+                        document.getElementById('point-class').textContent = 'Class: ' + selected.class;
+                        document.getElementById('point-coords').textContent = `Pos: (${selected.x.toFixed(2)}, ${selected.y.toFixed(2)}, ${selected.z.toFixed(2)})`;
+                        document.getElementById('point-link').href = selected.link;
+                        document.getElementById('info').style.display = 'block';
+                    }
+                } else {
+                    document.getElementById('info').style.display = 'none';
                 }
             }
         }
