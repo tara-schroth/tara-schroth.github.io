@@ -6,90 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>3D Data Visualization</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-            touch-action: none;
-        }
-        #container {
-            width: 100vw;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #container { width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; }
         #controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 100;
-            pointer-events: auto;
-        }
-        .checkbox-group {
-            margin: 5px 0;
-        }
-        label {
-            cursor: pointer;
-            user-select: none;
         }
         #info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            display: none;
-            max-width: 300px;
-            z-index: 100;
-            pointer-events: auto;
+            position: absolute; bottom: 10px; left: 10px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 5px; display: none; max-width: 300px; z-index: 100;
         }
-        #info h3 {
-            margin: 0 0 10px 0;
-        }
-        #info a {
-            color: #0066cc;
-            text-decoration: none;
-        }
-        #info a:hover {
-            text-decoration: underline;
-        }
-        #close-info {
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-        }
+        #close-info { position: absolute; top: 5px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div id="container"></div>
     <div id="controls">
         <h3 style="margin-top: 0;">Layers</h3>
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="layer1" checked> Layer 1</label>
-        </div>
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="layer2" checked> Layer 2</label>
-        </div>
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="layer3" checked> Layer 3</label>
-        </div>
+        <div><label><input type="checkbox" id="layer1" checked> Layer 1</label></div>
+        <div><label><input type="checkbox" id="layer2" checked> Layer 2</label></div>
+        <div><label><input type="checkbox" id="layer3" checked> Layer 3</label></div>
     </div>
     <div id="info">
         <button id="close-info">&times;</button>
@@ -100,251 +39,116 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        const data1 = [{"name": "Point A1", "class": "Class X", "x": 1, "y": 1, "z": 2, "link": "https://example.com/a1"}, {"name": "Point A2", "class": "Class Y", "x": 2, "y": 3, "z": 1, "link": "https://example.com/a2"}, {"name": "Point A3", "class": "Class X", "x": 3, "y": 2, "z": 3, "link": "https://example.com/a3"}];
-        const data2 = [{"name": "Point B1", "class": "Class Z", "x": -1, "y": 2, "z": 1, "link": "https://example.com/b1"}, {"name": "Point B2", "class": "Class Y", "x": -2, "y": -1, "z": 2, "link": "https://example.com/b2"}];
-        const data3 = [{"name": "Point C1", "class": "Class X", "x": 0, "y": -2, "z": 0, "link": "https://example.com/c1"}, {"name": "Point C2", "class": "Class Z", "x": 1, "y": 0, "z": -1, "link": "https://example.com/c2"}, {"name": "Point C3", "class": "Class Y", "x": -1, "y": 1, "z": -2, "link": "https://example.com/c3"}];
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-        let scene, camera, renderer, raycaster, mouse;
+    <script>
+        const data1 = [{"name": "A1", "class": "X", "x": 1, "y": 1, "z": 2, "link": "#"}];
+        const data2 = [{"name": "B1", "class": "Z", "x": -1, "y": 2, "z": 1, "link": "#"}];
+        const data3 = [{"name": "C1", "class": "X", "x": 0, "y": -2, "z": 0, "link": "#"}];
+
+        let scene, camera, renderer, raycaster, mouse, orbit;
         let layer1Group, layer2Group, layer3Group;
         let pointsData = [];
-        let controls = {
-            mouseDown: false,
-            mouseX: 0,
-            mouseY: 0,
-            cameraTheta: Math.PI / 4,
-            cameraPhi: Math.PI / 4,
-            cameraRadius: 15,
-            isDragging: false,
-            dragThreshold: 5
-        };
 
         function init() {
-            // Scene setup
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
 
-            // Camera setup
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(10, 10, 10);
-            camera.lookAt(0, 0, 0);
+            camera.position.set(15, 15, 15);
 
-            // Renderer setup
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('container').appendChild(renderer.domElement);
 
-            // Raycaster for mouse interaction
+            orbit = new THREE.OrbitControls(camera, renderer.domElement);
+            orbit.enableDamping = true;
+            orbit.dampingFactor = 0.05;
+
             raycaster = new THREE.Raycaster();
             raycaster.params.Points.threshold = 0.5;
             mouse = new THREE.Vector2();
 
-            // Create groups for each layer
             layer1Group = new THREE.Group();
             layer2Group = new THREE.Group();
             layer3Group = new THREE.Group();
+            scene.add(layer1Group, layer2Group, layer3Group);
 
-            scene.add(layer1Group);
-            scene.add(layer2Group);
-            scene.add(layer3Group);
+            scene.add(new THREE.AxesHelper(5));
+            scene.add(new THREE.GridHelper(20, 20));
 
-            // Add axes helper
-            const axesHelper = new THREE.AxesHelper(5);
-            scene.add(axesHelper);
-
-            // Add grid
-            const gridHelper = new THREE.GridHelper(20, 20);
-            scene.add(gridHelper);
-
-            // Create points for each layer
             createPoints(data1, layer1Group, 0xff0000, 1);
             createPoints(data2, layer2Group, 0x00ff00, 2);
             createPoints(data3, layer3Group, 0x0000ff, 3);
 
-            // Event listeners
-            document.getElementById('layer1').addEventListener('change', toggleLayer);
-            document.getElementById('layer2').addEventListener('change', toggleLayer);
-            document.getElementById('layer3').addEventListener('change', toggleLayer);
-            document.getElementById('close-info').addEventListener('click', closeInfo);
+            renderer.domElement.addEventListener('click', onDocumentClick);
             window.addEventListener('resize', onWindowResize);
 
-            // Mouse events
-            renderer.domElement.addEventListener('mousedown', onPointerDown);
-            renderer.domElement.addEventListener('mousemove', onPointerMove);
-            renderer.domElement.addEventListener('mouseup', onPointerUp);
-            renderer.domElement.addEventListener('wheel', onMouseWheel);
+            ['layer1', 'layer2', 'layer3'].forEach(id => {
+                document.getElementById(id).addEventListener('change', (e) => {
+                    const group = id === 'layer1' ? layer1Group : id === 'layer2' ? layer2Group : layer3Group;
+                    group.visible = e.target.checked;
+                });
+            });
 
-            // Touch events for mobile
-            renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: false });
-            renderer.domElement.addEventListener('touchmove', onPointerMove, { passive: false });
-            renderer.domElement.addEventListener('touchend', onPointerUp);
+            document.getElementById('close-info').onclick = () => document.getElementById('info').style.display = 'none';
 
-            updateCameraPosition();
             animate();
         }
 
         function createPoints(data, group, color, layerId) {
             const geometry = new THREE.BufferGeometry();
             const positions = [];
-
-            data.forEach((point, idx) => {
-                positions.push(point.x, point.y, point.z);
-                pointsData.push({
-                    position: new THREE.Vector3(point.x, point.y, point.z),
-                    name: point.name,
-                    class: point.class,
-                    link: point.link,
-                    layerId: layerId,
-                    x: point.x,
-                    y: point.y,
-                    z: point.z
-                });
+            data.forEach(p => {
+                positions.push(p.x, p.y, p.z);
+                // Store metadata for the raycaster search
+                pointsData.push({ ...p, layerId, position: new THREE.Vector3(p.x, p.y, p.z) });
             });
-
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-
-            const material = new THREE.PointsMaterial({
-                color: color,
-                size: 0.5,
-                sizeAttenuation: true
-            });
-
-            const points = new THREE.Points(geometry, material);
-            group.add(points);
+            const material = new THREE.PointsMaterial({ color: color, size: 0.5, sizeAttenuation: true });
+            group.add(new THREE.Points(geometry, material));
         }
 
-        function toggleLayer(event) {
-            const layerId = event.target.id;
-            if (layerId === 'layer1') {
-                layer1Group.visible = event.target.checked;
-            } else if (layerId === 'layer2') {
-                layer2Group.visible = event.target.checked;
-            } else if (layerId === 'layer3') {
-                layer3Group.visible = event.target.checked;
-            }
-        }
+        function onDocumentClick(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-        function closeInfo() {
-            document.getElementById('info').style.display = 'none';
-        }
-
-        function onPointerDown(event) {
-            event.preventDefault();
-
-            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-
-            controls.mouseDown = true;
-            controls.mouseX = clientX;
-            controls.mouseY = clientY;
-            controls.startX = clientX;
-            controls.startY = clientY;
-            controls.isDragging = false;
-        }
-
-        function onPointerMove(event) {
-            event.preventDefault();
-
-            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-
-            if (controls.mouseDown) {
-                const deltaX = clientX - controls.mouseX;
-                const deltaY = clientY - controls.mouseY;
-
-                // Check if movement exceeds drag threshold
-                const totalMovement = Math.abs(clientX - controls.startX) + Math.abs(clientY - controls.startY);
-                if (totalMovement > controls.dragThreshold) {
-                    controls.isDragging = true;
-                }
-
-                controls.cameraTheta -= deltaX * 0.01;
-                controls.cameraPhi -= deltaY * 0.01;
-
-                controls.mouseX = clientX;
-                controls.mouseY = clientY;
-
-                updateCameraPosition();
-            }
-
-            mouse.x = (clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-        }
-
-        function onPointerUp(event) {
-            event.preventDefault();
-
-            // Only trigger click if not dragging
-            if (!controls.isDragging) {
-                const clientX = event.changedTouches ? event.changedTouches[0].clientX : event.clientX;
-                const clientY = event.changedTouches ? event.changedTouches[0].clientY : event.clientY;
-
-                mouse.x = (clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(clientY / window.innerHeight) * 2 + 1;
-
-                checkPointClick();
-            }
-
-            controls.mouseDown = false;
-            controls.isDragging = false;
-            controls.lastTouchDistance = null;
-        }
-
-        function onMouseWheel(event) {
-            event.preventDefault();
-            controls.cameraRadius += event.deltaY * 0.01;
-            controls.cameraRadius = Math.max(5, Math.min(50, controls.cameraRadius));
-            updateCameraPosition();
-        }
-
-        function updateCameraPosition() {
-            camera.position.x = controls.cameraRadius * Math.sin(controls.cameraTheta) * Math.cos(controls.cameraPhi);
-            camera.position.y = controls.cameraRadius * Math.sin(controls.cameraPhi);
-            camera.position.z = controls.cameraRadius * Math.cos(controls.cameraTheta) * Math.cos(controls.cameraPhi);
-            camera.lookAt(0, 0, 0);
-        }
-
-        function checkPointClick() {
             raycaster.setFromCamera(mouse, camera);
+            const visibleGroups = [];
+            if(layer1Group.visible) visibleGroups.push(...layer1Group.children);
+            if(layer2Group.visible) visibleGroups.push(...layer2Group.children);
+            if(layer3Group.visible) visibleGroups.push(...layer3Group.children);
 
-            // Check intersections with visible layers
-            const groups = [];
-            if (layer1Group.visible) groups.push(...layer1Group.children);
-            if (layer2Group.visible) groups.push(...layer2Group.children);
-            if (layer3Group.visible) groups.push(...layer3Group.children);
-
-            const intersects = raycaster.intersectObjects(groups);
+            const intersects = raycaster.intersectObjects(visibleGroups);
 
             if (intersects.length > 0) {
-                const point = intersects[0];
-                const clickPos = point.point;
-                let minDist = Infinity;
-                let selectedPoint = null;
+                const intersect = intersects[0];
+                let selected = null;
+                let minDistance = Infinity;
 
+                // Loop through points to find the closest one to the click intersection
                 pointsData.forEach(pd => {
-                    const isVisible = (pd.layerId === 1 && layer1Group.visible) ||
-                                    (pd.layerId === 2 && layer2Group.visible) ||
-                                    (pd.layerId === 3 && layer3Group.visible);
+                    const isLayerVisible = (pd.layerId === 1 && layer1Group.visible) || 
+                                         (pd.layerId === 2 && layer2Group.visible) || 
+                                         (pd.layerId === 3 && layer3Group.visible);
 
-                    if (isVisible) {
-                        const dist = pd.position.distanceTo(clickPos);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            selectedPoint = pd;
+                    if (isLayerVisible) {
+                        const dist = pd.position.distanceTo(intersect.point);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            selected = pd;
                         }
                     }
                 });
 
-                if (selectedPoint) {
-                    document.getElementById('point-name').textContent = selectedPoint.name;
-                    document.getElementById('point-class').textContent = 'Class: ' + selectedPoint.class;
-                    document.getElementById('point-coords').textContent = 
-                        `Position: (${selectedPoint.x.toFixed(2)}, ${selectedPoint.y.toFixed(2)}, ${selectedPoint.z.toFixed(2)})`;
-                    document.getElementById('point-link').href = selectedPoint.link;
+                if (selected) {
+                    document.getElementById('point-name').textContent = selected.name;
+                    document.getElementById('point-class').textContent = 'Class: ' + selected.class;
+                    document.getElementById('point-coords').textContent = `Pos: (${selected.x}, ${selected.y}, ${selected.z})`;
+                    document.getElementById('point-link').href = selected.link;
                     document.getElementById('info').style.display = 'block';
                 }
-            } else {
-                document.getElementById('info').style.display = 'none';
             }
         }
 
@@ -356,6 +160,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            orbit.update();
             renderer.render(scene, camera);
         }
 
