@@ -53,9 +53,9 @@
     <div id="container"></div>
     <div id="controls">
         <h3 style="margin: 0 0 10px 0;">Layers</h3>
-        <label><input type="checkbox" id="layer1" checked> TCIP</label>
-        <label><input type="checkbox" id="layer2"> GCIP</label>
-        <label><input type="checkbox" id="layer3"> ICIP</label>
+        <label><input type="radio" id="layer1" name="layerGroup" checked> TCIP</label>
+        <label><input type="radio" id="layer2" name="layerGroup"> GCIP</label>
+        <label><input type="radio" id="layer3" name="layerGroup"> ICIP</label>
     </div>
     <div id="info">
         <button id="close-info">&times;</button>
@@ -122,6 +122,8 @@
             "vcol": "Vertex coloring",
             "vrp": "Vehicle routing",
             };
+        
+
 
         let scene, camera, renderer, raycaster, mouse, orbit;
         let layer1Group, layer2Group, layer3Group;
@@ -144,6 +146,16 @@
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(15, 15, 15);
+
+            const updateLayers = () => {
+            layer1Group.visible = document.getElementById('layer1').checked;
+            layer2Group.visible = document.getElementById('layer2').checked;
+            layer3Group.visible = document.getElementById('layer3').checked;
+            };
+
+            document.getElementById('layer1').addEventListener('change', updateLayers);
+            document.getElementById('layer2').addEventListener('change', updateLayers);
+            document.getElementById('layer3').addEventListener('change', updateLayers);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
